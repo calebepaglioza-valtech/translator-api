@@ -34,31 +34,47 @@ def translate_text():
 @app.route('/translate-audio', methods=['POST'])
 def translate_audio():
     if "audio" not in request.files:
+        print("❌ No audio file uploaded!")
         return jsonify({"error": "No audio file uploaded"}), 400
 
     audio_file = request.files["audio"]
-    
-    # Convert speech to text using Whisper API
-    transcript_response = openai_client.audio.transcriptions.create(
-        model="whisper-1",
-        file=audio_file
-    )
-    
-    swedish_text = transcript_response.text
+    print(f"✅ Received Audio File: {audio_file.filename}")
 
-    # Translate the transcribed text to English
-    translation_response = openai_client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": "Translate Swedish to English."},
-            {"role": "user", "content": swedish_text}
-        ]
-    )
+    try:
+        # Convert the FileStorage object to bytes
+        audio_bytes = audio_file.read()  
 
-    return jsonify({
-        "transcribed_text": swedish_text,
-        "english_translation": translation_response.choices[0].message.content
-    })
+        # Convert speech to text using Whisper API
+        print("🔄 Sending file to Whisper API...")
+        transcript_response = openai_client.audio.transcriptions.create(
+            model="whisper-1",
+            file=("audio.wav", audio_bytes, "audio/wav")  # Convert to proper format
+        )
+
+        swedish_text = transcript_response.text
+        print(f"✅ Transcribed Text: {swedish_text}")
+
+        # Translate text to English
+        print("🔄 Sending text to GPT-4o-mini for translation...")
+        translation_response = openai_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "Translate Swedish to English."},
+                {"role": "user", "content": swedish_text}
+            ]
+        )
+
+        english_translation = translation_response.choices[0].message.content
+        print(f"✅ Translated Text: {english_translation}")
+
+        return jsonify({
+            "transcribed_text": swedish_text,
+            "english_translation": english_translation
+        })
+
+    except Exception as e:
+        print(f"❌ API Error: {e}")  # Logs the error in the server logs
+        return jsonify({"error": "Internal Server Error", "details": str(e)}), 500
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5001, debug=True)
