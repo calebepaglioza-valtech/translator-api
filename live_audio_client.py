@@ -31,13 +31,19 @@ def record_audio(filename="audio.wav", duration=5, sample_rate=16000):
 def send_audio():
     audio_file = record_audio()
     print(f"Sending {audio_file} to API...")
-    
+
     response = requests.post(
         API_URL,
         files={"audio": open(audio_file, "rb")}
     )
 
-    print("Response:", response.json())
+    print("Raw Response:", response.text)  # ✅ Print raw response
+
+    try:
+        response_json = response.json()
+        print("Response:", response_json)
+    except requests.exceptions.JSONDecodeError:
+        print("Error: Could not decode JSON. Raw response:", response.text)
 
 if __name__ == "__main__":
     send_audio()
